@@ -3,7 +3,9 @@
 RendererGL* RendererGL::Renderer = nullptr;
 RendererGL::RendererGL() :
    Window( nullptr ), ClickedPoint( -1, -1 ), ClothTargetIndex( 0 ), ClothPointNumSize( 100, 100 ),
-   ClothGridSize( 5, 5 )
+   ClothGridSize( 150, 150 ), SpherePosition( 75.0f, 0.0f, 70.0f ), SphereRadius( 20.0f ),
+   ClothWorldMatrix( translate( mat4(1.0f), vec3(0.0f, 100.0f, 0.0f) ) ),
+   SphereWorldMatrix( translate( mat4(1.0f), vec3(75.0f, 0.0f, 70.0f) ) )
 {
    Renderer = this;
    MainCamera = make_shared<CameraGL>();
@@ -53,7 +55,7 @@ void RendererGL::initialize()
    registerCallbacks();
    
    glEnable( GL_DEPTH_TEST );
-   glClearColor( 0.1f, 0.1f, 0.1f, 1.0f );
+   glClearColor( 0.2f, 0.2f, 0.2f, 1.0f );
 
    MainCamera->updateWindowSize( width, height );
    ObjectShader->setShader(
@@ -61,8 +63,7 @@ void RendererGL::initialize()
       "Shaders/FragmentShaderForObject.glsl"
    );
    ObjectShader->setComputeShaders( { 
-      "Shaders/ComputeShaderForWave.glsl",
-      "Shaders/ComputeShaderForWaveNormal.glsl"
+      "Shaders/ComputeShaderForCloth.glsl"
    } );
 }
 
@@ -197,7 +198,7 @@ void RendererGL::registerCallbacks() const
 
 void RendererGL::setLights()
 {  
-   const vec4 light_position(256.0f, 500.0f, 512.0f, 1.0f);
+   const vec4 light_position(100.0f, 500.0f, 100.0f, 1.0f);
    const vec4 ambient_color(1.0f, 1.0f, 1.0f, 1.0f);
    const vec4 diffuse_color(0.7f, 0.7f, 0.7f, 1.0f);
    const vec4 specular_color(0.9f, 0.9f, 0.9f, 1.0f);
@@ -206,7 +207,6 @@ void RendererGL::setLights()
 
 void RendererGL::setClothObject() const
 {
-   const float size = 30.0f;
    const float ds = 1.0f / static_cast<float>(ClothPointNumSize.x - 1);
    const float dt = 1.0f / static_cast<float>(ClothPointNumSize.y - 1);
    const float dx = static_cast<float>(ClothGridSize.x) * ds;
@@ -218,7 +218,7 @@ void RendererGL::setClothObject() const
       const auto y = static_cast<float>(j);
       for (int i = 0; i < ClothPointNumSize.x; ++i) {
          const auto x = static_cast<float>(i);   
-         cloth_vertices.emplace_back( size * x * dx, 0.0f, size * y * dy );
+         cloth_vertices.emplace_back( x * dx, 0.0f, y * dy );
          cloth_normals.emplace_back( 0.0f, 1.0f, 0.0f );
          cloth_textures.emplace_back( x * ds, y * dt );
       }
@@ -246,15 +246,66 @@ void RendererGL::setSphereObject() const
 
 void RendererGL::setSuzanneObject() const
 {
-   SuzanneObject->setObject( GL_TRIANGLES, "Samples/suzanne.obj", "Samples/cloth.jpg" );
+   SuzanneObject->setObject( GL_TRIANGLES, "Samples/suzanne.obj", "Samples/suzanne.jpg" );
    SuzanneObject->setDiffuseReflectionColor( { 1.0f, 1.0f, 1.0f, 1.0f } );
+}
+
+void RendererGL::setClothPhysicsVariables() const
+{
+   ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "SpringRestLength" );
+   ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "SpringStiffness" );
+   ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "SpringDamping" );
+   ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "ShearRestLength" );
+   ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "ShearStiffness" );
+   ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "ShearDamping" );
+   ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "BendingRestLength" );
+   ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "BendingStiffness" );
+   ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "BendingDamping" );
+   ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "GravityConstant" );
+   ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "GravityDamping" );
+   ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "dt" );
+   ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "Mass" );
+   ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "ClothWorldMatrix" );
+   ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "SpherePosition" );
+   ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "SphereRadius" );
+   ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "SphereWorldMatrix" );
+}
+
+void RendererGL::applyForces()
+{
+   const float rest_length = static_cast<float>(ClothGridSize.x) / static_cast<float>(ClothPointNumSize.x);
+   glUseProgram( ObjectShader->ComputeShaderPrograms[0] );
+   glUniform1f( ObjectShader->CustomLocations["SpringRestLength"], rest_length );
+   glUniform1f( ObjectShader->CustomLocations["SpringStiffness"], 30.0f );
+   glUniform1f( ObjectShader->CustomLocations["SpringDamping"], -0.5f );
+   glUniform1f( ObjectShader->CustomLocations["ShearRestLength"], sqrt( 2.0f ) * rest_length );
+   glUniform1f( ObjectShader->CustomLocations["ShearStiffness"], 30.0f );
+   glUniform1f( ObjectShader->CustomLocations["ShearDamping"], -0.5f );
+   glUniform1f( ObjectShader->CustomLocations["BendingRestLength"], 2.0f * rest_length );
+   glUniform1f( ObjectShader->CustomLocations["BendingStiffness"], 15.0f );
+   glUniform1f( ObjectShader->CustomLocations["BendingDamping"], -0.5f );
+   glUniform1f( ObjectShader->CustomLocations["GravityConstant"], -5.0f );
+   glUniform1f( ObjectShader->CustomLocations["GravityDamping"], -0.3f );
+   glUniform1f( ObjectShader->CustomLocations["dt"], 0.1f );
+   glUniform1f( ObjectShader->CustomLocations["Mass"], 1.0f );
+   glUniformMatrix4fv( ObjectShader->CustomLocations["ClothWorldMatrix"], 1, GL_FALSE, &ClothWorldMatrix[0][0] );
+   glUniform3fv( ObjectShader->CustomLocations["SpherePosition"], 1, &SpherePosition[0] );
+   glUniform1f( ObjectShader->CustomLocations["SphereRadius"], SphereRadius );
+   glUniformMatrix4fv( ObjectShader->CustomLocations["SphereWorldMatrix"], 1, GL_FALSE, &SphereWorldMatrix[0][0] );
+   
+   glDispatchCompute( ClothPointNumSize.x / 10, ClothPointNumSize.y / 10, 1 );
+   glMemoryBarrier( GL_SHADER_STORAGE_BARRIER_BIT );
+   
+   glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 0, ClothObject->ShaderStorageBufferObjects[ClothTargetIndex] );
+   glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 1, ClothObject->ShaderStorageBufferObjects[(ClothTargetIndex + 1) % 3] );
+   glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 2, ClothObject->ShaderStorageBufferObjects[(ClothTargetIndex + 2) % 3] );
+   ClothTargetIndex = (ClothTargetIndex + 1) % 3;
 }
 
 void RendererGL::drawClothObject(ShaderGL* shader, CameraGL* camera)
 {
-   const mat4 to_world = translate( mat4(1.0f), vec3(0.0f, 100.0f, 0.0f) );
-   const mat4 model_view_projection = camera->ProjectionMatrix * camera->ViewMatrix * to_world;
-   glUniformMatrix4fv( shader->Location.World, 1, GL_FALSE, &to_world[0][0] );
+   const mat4 model_view_projection = camera->ProjectionMatrix * camera->ViewMatrix * ClothWorldMatrix;
+   glUniformMatrix4fv( shader->Location.World, 1, GL_FALSE, &ClothWorldMatrix[0][0] );
    glUniformMatrix4fv( shader->Location.View, 1, GL_FALSE, &camera->ViewMatrix[0][0] );
    glUniformMatrix4fv( shader->Location.Projection, 1, GL_FALSE, &camera->ProjectionMatrix[0][0] );
    glUniformMatrix4fv( shader->Location.ModelViewProjection, 1, GL_FALSE, &model_view_projection[0][0] );
@@ -275,9 +326,8 @@ void RendererGL::drawClothObject(ShaderGL* shader, CameraGL* camera)
 
 void RendererGL::drawSphereObject(ShaderGL* shader, CameraGL* camera)
 {
-   const mat4 to_world = translate( mat4(1.0f), vec3(110.0f, 0.0f, 70.0f) );
-   const mat4 model_view_projection = camera->ProjectionMatrix * camera->ViewMatrix * to_world;
-   glUniformMatrix4fv( shader->Location.World, 1, GL_FALSE, &to_world[0][0] );
+   const mat4 model_view_projection = camera->ProjectionMatrix * camera->ViewMatrix * SphereWorldMatrix;
+   glUniformMatrix4fv( shader->Location.World, 1, GL_FALSE, &SphereWorldMatrix[0][0] );
    glUniformMatrix4fv( shader->Location.View, 1, GL_FALSE, &camera->ViewMatrix[0][0] );
    glUniformMatrix4fv( shader->Location.Projection, 1, GL_FALSE, &camera->ProjectionMatrix[0][0] );
    glUniformMatrix4fv( shader->Location.ModelViewProjection, 1, GL_FALSE, &model_view_projection[0][0] );
@@ -308,12 +358,14 @@ void RendererGL::drawSuzanneObject(ShaderGL* shader, CameraGL* camera)
 void RendererGL::render()
 {
    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
-     
+
+   applyForces();
+
    glUseProgram( ObjectShader->ShaderProgram );
    Lights->transferUniformsToShader( ObjectShader.get() );
    drawClothObject( ObjectShader.get(), MainCamera.get() );
    drawSphereObject( ObjectShader.get(), MainCamera.get() );
-   drawSuzanneObject( ObjectShader.get(), MainCamera.get() );
+   //drawSuzanneObject( ObjectShader.get(), MainCamera.get() );
 
    glBindVertexArray( 0 );
    glUseProgram( 0 );
@@ -326,8 +378,10 @@ void RendererGL::play()
    setLights();
    setClothObject();
    setSphereObject();
-   setSuzanneObject();
+   //setSuzanneObject();
+   setClothPhysicsVariables();
    ObjectShader->setUniformLocations( Lights->TotalLightNum );
+   
 
    while (!glfwWindowShouldClose( Window )) {
       render();

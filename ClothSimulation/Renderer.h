@@ -23,6 +23,10 @@ class RendererGL
    uint ClothTargetIndex;
    ivec2 ClothPointNumSize;
    ivec2 ClothGridSize;
+   vec3 SpherePosition;
+   float SphereRadius;
+   mat4 ClothWorldMatrix;
+   mat4 SphereWorldMatrix;
 
    shared_ptr<CameraGL> MainCamera;
    shared_ptr<ShaderGL> ObjectShader;
@@ -51,7 +55,9 @@ class RendererGL
    void setClothObject() const;
    void setSphereObject() const;
    void setSuzanneObject() const;
+   void setClothPhysicsVariables() const;
 
+   void applyForces();
    void drawClothObject(ShaderGL* shader, CameraGL* camera);
    void drawSphereObject(ShaderGL* shader, CameraGL* camera);
    void drawSuzanneObject(ShaderGL* shader, CameraGL* camera);

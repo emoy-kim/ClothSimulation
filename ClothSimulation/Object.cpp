@@ -510,10 +510,10 @@ void ObjectGL::transferUniformsToShader(ShaderGL* shader)
 void ObjectGL::prepareShaderStorageBuffer()
 {
    ShaderStorageBufferObjects.resize( 3 );
-   glGenBuffers( 1, &ShaderStorageBufferObjects[1] );
-   glGenBuffers( 1, &ShaderStorageBufferObjects[2] );
-
    ShaderStorageBufferObjects[0] = ObjVBO;
+   glCreateBuffers( 1, &ShaderStorageBufferObjects[1] );
+   glCreateBuffers( 1, &ShaderStorageBufferObjects[2] );
+   
    glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 0, ShaderStorageBufferObjects[0] );
    glBufferData( GL_SHADER_STORAGE_BUFFER, sizeof GLfloat * DataBuffer.size(), DataBuffer.data(), GL_DYNAMIC_DRAW );
 
