@@ -3,9 +3,9 @@
 RendererGL* RendererGL::Renderer = nullptr;
 RendererGL::RendererGL() :
    Window( nullptr ), ClickedPoint( -1, -1 ), ClothTargetIndex( 0 ), ClothPointNumSize( 100, 100 ),
-   ClothGridSize( 150, 150 ), SpherePosition( 75.0f, 0.0f, 70.0f ), SphereRadius( 20.0f ),
-   ClothWorldMatrix( translate( mat4(1.0f), vec3(0.0f, 100.0f, 0.0f) ) ),
-   SphereWorldMatrix( translate( mat4(1.0f), vec3(75.0f, 0.0f, 70.0f) ) )
+   ClothGridSize( 100, 100 ), SpherePosition( 0.0f, 0.0f, 0.0f ), SphereRadius( 20.0f ),
+   ClothWorldMatrix( translate( mat4(1.0f), vec3(30.0f, 100.0f, 0.0f) ) ),
+   SphereWorldMatrix( translate( mat4(1.0f), vec3(75.0f, 30.0f, 70.0f) ) )
 {
    Renderer = this;
    MainCamera = make_shared<CameraGL>();
@@ -265,6 +265,7 @@ void RendererGL::setClothPhysicsVariables() const
    ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "GravityDamping" );
    ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "dt" );
    ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "Mass" );
+   ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "ClothPosition" );
    ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "ClothWorldMatrix" );
    ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "SpherePosition" );
    ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "SphereRadius" );

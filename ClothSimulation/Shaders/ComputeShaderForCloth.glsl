@@ -115,39 +115,26 @@ vec4 calculateGravityForce(vec4 velocity)
    return Mass * Gravity + velocity * GravityDamping;
 }
 
-vec4 calculateFrictionOnSphere()
+bool calculateFrictionOnSphereIfCollided(inout vec4 force, vec4 p_curr, vec4 velocity)
 {
-   vec4 sphereCenter = vec4(sphereX, 0, 0, 1);
-   float currDist = length(current.xyz - sphereCenter.xyz);
-   float radius = sqrt(0.5*0.5+structRest*structRest);
-   //if (false)
-   force += GRAVITY * mass + vel * GRAVITY_DAMPING;
-   if (currDist <= radius+0.0005)
-   {
-      vec3 normal = normalize(current.xyz - sphereCenter.xyz);
-      vec3 tangent = normalize(cross(cross(normal, force.xyz), normal));
-      //수직항력
-      float vertical = max(dot(force.xyz, -normal), 0);
-      //수평성분 (force)
-      float horizontal = max(dot(force.xyz, tangent), 0);
-      //마찰계수
-
-      if (vertical != 0)
-      {
-         //float kfr = 0.5;
-         //마찰력0
-         float friction = vertical * kfr;
-
-         force = max(horizontal - friction, 0) * vec4(tangent, 0) + vel*-0.75;
-
-         if (length(force) > 0 || vertical == 0)
-            movable = true;
-         else
-         {
-            movable = false;
-         }
+   const float epsilon = 0.05f;
+   vec4 position_in_wc = ClothWorldMatrix * p_curr;
+   vec4 sphere_in_wc = SphereWorldMatrix * vec4(SpherePosition, one);
+   vec3 d = (position_in_wc - sphere_in_wc).xyz;
+   float distance = length( d );
+   if (distance < SphereRadius + epsilon) {
+      vec3 normal = normalize( d );
+      vec3 tangent = normalize( cross( cross( normal, force.xyz ), normal ) );
+      float normal_force = max( dot( force.xyz, -normal ), zero );
+      float horizontal_force = max( dot( force.xyz, tangent ), zero );
+      if (normal_force > zero) {
+         float friction = 0.5f * normal_force;
+         force = max( horizontal_force - friction, zero ) * vec4( tangent, zero ) + velocity * -0.75f;
+         return length( force ) > zero;
       }
+      else return true;
    }
+   return true;
 }
 
 /*vec4 calculateWindForce(vec4 velocity)
@@ -163,16 +150,74 @@ vec3 update(vec4 force, vec4 p_curr, vec4 velocity, uint index)
    return updated.xyz;
 }
 
-void detectCollisionWithSphere(inout vec3 updated, uint index)
+void adjustElasticity(inout updated)
 {
+   // top
+   if (neighbors[0].index != 0xFFFFFFFF && Mass != 0) {
+      vec4 up = vertexOutBuffer[upIndex];
+      vec4 far = updated - up;
+      if (length(far) > structRest * 1.1)
+      {
+         vec4 fix = normalize(-far)*(length(far) - structRest*1.1);
+         updated = updated + fix;
+      }
+   }
+   if (leftIndex != NO_NEIGHBOR && mass != 0) {
+      vec4 left = vertexOutBuffer[leftIndex];
+      vec4 far = updated - left;
+      if (length(far) > structRest * 1.1)
+      {
+         vec4 fix = normalize(-far)*(length(far) - structRest*1.1) / 2;
+         updated = updated + fix;
+      }
+   }
+   if (rightIndex != NO_NEIGHBOR && mass != 0)
+   {
+      vec4 left = vertexOutBuffer[rightIndex];
+      vec4 far = updated - left;
+      if (length(far) > structRest * 1.1)
+      {
+         vec4 fix = normalize(-far)*(length(far) - structRest*1.1) / 2;
+         updated = updated + fix;
+      }
+   }
+   
+   
+   if (neighbors[S1].index != NO_NEIGHBOR && mass != 0)
+   {
+      vec4 left = vertexOutBuffer[neighbors[S1].index];
+      vec4 far = updated - left;
+      if (length(far) > shearRest * 1.2)
+      {
+         vec4 fix = normalize(-far)*(length(far) - shearRest*1.2);
+         updated = updated + fix;
+      }
+   }
+   if (neighbors[S2].index != NO_NEIGHBOR && mass != 0)
+   {
+      vec4 left = vertexOutBuffer[neighbors[S2].index];
+      vec4 far = updated - left;
+      if (length(far) > shearRest * 1.2)
+      {
+         vec4 fix = normalize(-far)*(length(far) - shearRest*1.2);
+         updated = updated + fix;
+      }
+   }
+}
+
+bool detectCollisionWithSphere(inout vec3 updated, uint index)
+{
+   const float epsilon = 0.05f;
    vec4 updated_in_wc = ClothWorldMatrix * vec4(updated, one);
    vec4 sphere_in_wc = SphereWorldMatrix * vec4(SpherePosition, one);
    vec3 d = (updated_in_wc - sphere_in_wc).xyz;
    float distance = length( d );
-   if (distance < SphereRadius) {
+   if (distance < SphereRadius + epsilon) {
       updated_in_wc.xyz += (SphereRadius - distance) * normalize( d );
       updated = vec3(inverse( ClothWorldMatrix ) * updated_in_wc);
+      return true;
    }
+   return false;
 }
 
 void detectCollisionWithFloor(inout vec3 updated, uint index)
@@ -192,17 +237,20 @@ void main()
 
    setNeighborSprings( index, points.x, points.y );
 
-   vec4 force = calculateMassSpringForce( p_curr, velocity );
-   force += calculateGravityForce( velocity );
-   force += calculateFrictionOnSphere();
+   vec4 force = calculateMassSpringForce( p_curr, velocity ) + calculateGravityForce( velocity );
+   bool to_be_moved = calculateFrictionOnSphereIfCollided( force, p_curr, velocity );
    // force += calculateWindForce();
 
    vec3 updated = update( force, p_curr, velocity, index );
 
-   // ... adjust ...
+   if (to_be_moved) adjustElasticity( updated );
 
-   detectCollisionWithSphere( updated, index );
-
+   bool collided = detectCollisionWithSphere( updated, index );
+   if (!collided && !to_be_moved) {
+      updated.x = Pn[index].x;
+      updated.y = Pn[index].y;
+      updated.z = Pn[index].z;
+   }
    detectCollisionWithFloor( updated, index );
 
    Pn_next[index].x = updated.x;
