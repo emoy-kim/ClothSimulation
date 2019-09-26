@@ -3,9 +3,9 @@
 RendererGL* RendererGL::Renderer = nullptr;
 RendererGL::RendererGL() :
    Window( nullptr ), ClickedPoint( -1, -1 ), ClothTargetIndex( 0 ), ClothPointNumSize( 100, 100 ),
-   ClothGridSize( 100, 100 ), SpherePosition( 0.0f, 0.0f, 0.0f ), SphereRadius( 20.0f ),
-   ClothWorldMatrix( translate( mat4(1.0f), vec3(30.0f, 100.0f, 0.0f) ) ),
-   SphereWorldMatrix( translate( mat4(1.0f), vec3(75.0f, 30.0f, 70.0f) ) )
+   ClothGridSize( 50, 50 ), SpherePosition( 0.0f, 0.0f, 0.0f ), SphereRadius( 20.0f ),
+   ClothWorldMatrix( translate( mat4(1.0f), vec3(50.0f, 100.0f, 0.0f) ) ),
+   SphereWorldMatrix( translate( mat4(1.0f), vec3(100.0f, 30.0f, 20.0f) ) )
 {
    Renderer = this;
    MainCamera = make_shared<CameraGL>();
@@ -13,7 +13,6 @@ RendererGL::RendererGL() :
    Lights = make_shared<LightGL>();
    ClothObject = make_shared<ObjectGL>();
    SphereObject = make_shared<ObjectGL>();
-   SuzanneObject = make_shared<ObjectGL>();
 
    initialize();
    printOpenGLInformation();
@@ -198,7 +197,7 @@ void RendererGL::registerCallbacks() const
 
 void RendererGL::setLights()
 {  
-   const vec4 light_position(100.0f, 500.0f, 100.0f, 1.0f);
+   const vec4 light_position(30.0f, 500.0f, 30.0f, 1.0f);
    const vec4 ambient_color(1.0f, 1.0f, 1.0f, 1.0f);
    const vec4 diffuse_color(0.7f, 0.7f, 0.7f, 1.0f);
    const vec4 specular_color(0.9f, 0.9f, 0.9f, 1.0f);
@@ -244,12 +243,6 @@ void RendererGL::setSphereObject() const
    SphereObject->setDiffuseReflectionColor( { 1.0f, 1.0f, 1.0f, 1.0f } );
 }
 
-void RendererGL::setSuzanneObject() const
-{
-   SuzanneObject->setObject( GL_TRIANGLES, "Samples/suzanne.obj", "Samples/suzanne.jpg" );
-   SuzanneObject->setDiffuseReflectionColor( { 1.0f, 1.0f, 1.0f, 1.0f } );
-}
-
 void RendererGL::setClothPhysicsVariables() const
 {
    ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "SpringRestLength" );
@@ -258,9 +251,9 @@ void RendererGL::setClothPhysicsVariables() const
    ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "ShearRestLength" );
    ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "ShearStiffness" );
    ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "ShearDamping" );
-   ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "BendingRestLength" );
-   ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "BendingStiffness" );
-   ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "BendingDamping" );
+   ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "FlexionRestLength" );
+   ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "FlexionStiffness" );
+   ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "FlexionDamping" );
    ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "GravityConstant" );
    ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "GravityDamping" );
    ObjectShader->addUniformLocation( ObjectShader->ComputeShaderPrograms[0], "dt" );
@@ -277,14 +270,14 @@ void RendererGL::applyForces()
    const float rest_length = static_cast<float>(ClothGridSize.x) / static_cast<float>(ClothPointNumSize.x);
    glUseProgram( ObjectShader->ComputeShaderPrograms[0] );
    glUniform1f( ObjectShader->CustomLocations["SpringRestLength"], rest_length );
-   glUniform1f( ObjectShader->CustomLocations["SpringStiffness"], 30.0f );
+   glUniform1f( ObjectShader->CustomLocations["SpringStiffness"], 10.0f );
    glUniform1f( ObjectShader->CustomLocations["SpringDamping"], -0.5f );
-   glUniform1f( ObjectShader->CustomLocations["ShearRestLength"], sqrt( 2.0f ) * rest_length );
-   glUniform1f( ObjectShader->CustomLocations["ShearStiffness"], 30.0f );
+   glUniform1f( ObjectShader->CustomLocations["ShearRestLength"], 1.5f * rest_length );
+   glUniform1f( ObjectShader->CustomLocations["ShearStiffness"], 10.0f );
    glUniform1f( ObjectShader->CustomLocations["ShearDamping"], -0.5f );
-   glUniform1f( ObjectShader->CustomLocations["BendingRestLength"], 2.0f * rest_length );
-   glUniform1f( ObjectShader->CustomLocations["BendingStiffness"], 15.0f );
-   glUniform1f( ObjectShader->CustomLocations["BendingDamping"], -0.5f );
+   glUniform1f( ObjectShader->CustomLocations["FlexionRestLength"], 2.0f * rest_length );
+   glUniform1f( ObjectShader->CustomLocations["FlexionStiffness"], 5.0f );
+   glUniform1f( ObjectShader->CustomLocations["FlexionDamping"], -0.5f );
    glUniform1f( ObjectShader->CustomLocations["GravityConstant"], -5.0f );
    glUniform1f( ObjectShader->CustomLocations["GravityDamping"], -0.3f );
    glUniform1f( ObjectShader->CustomLocations["dt"], 0.1f );
@@ -325,10 +318,11 @@ void RendererGL::drawClothObject(ShaderGL* shader, CameraGL* camera)
    }
 }
 
-void RendererGL::drawSphereObject(ShaderGL* shader, CameraGL* camera)
+void RendererGL::drawSphereObject(ShaderGL* shader, CameraGL* camera) const
 {
-   const mat4 model_view_projection = camera->ProjectionMatrix * camera->ViewMatrix * SphereWorldMatrix;
-   glUniformMatrix4fv( shader->Location.World, 1, GL_FALSE, &SphereWorldMatrix[0][0] );
+   const mat4 to_world = SphereWorldMatrix * translate( mat4(1.0f), SpherePosition );
+   const mat4 model_view_projection = camera->ProjectionMatrix * camera->ViewMatrix * to_world;
+   glUniformMatrix4fv( shader->Location.World, 1, GL_FALSE, &to_world[0][0] );
    glUniformMatrix4fv( shader->Location.View, 1, GL_FALSE, &camera->ViewMatrix[0][0] );
    glUniformMatrix4fv( shader->Location.Projection, 1, GL_FALSE, &camera->ProjectionMatrix[0][0] );
    glUniformMatrix4fv( shader->Location.ModelViewProjection, 1, GL_FALSE, &model_view_projection[0][0] );
@@ -336,24 +330,6 @@ void RendererGL::drawSphereObject(ShaderGL* shader, CameraGL* camera)
    glBindTextureUnit( shader->Location.Texture[0].first, SphereObject->TextureID[0] );
    glBindVertexArray( SphereObject->ObjVAO );
    glDrawArrays( SphereObject->DrawMode, 0, SphereObject->VerticesCount );
-}
-
-void RendererGL::drawSuzanneObject(ShaderGL* shader, CameraGL* camera)
-{
-   const mat4 to_world = 
-      translate( mat4(1.0f), vec3(30.0f, 0.0f, 70.0f) ) *
-      scale( mat4(1.0f), vec3( 20.0f, 20.0f, 20.0f ) );
-   const mat4 model_view_projection = camera->ProjectionMatrix * camera->ViewMatrix * to_world;
-   glUniformMatrix4fv( shader->Location.World, 1, GL_FALSE, &to_world[0][0] );
-   glUniformMatrix4fv( shader->Location.View, 1, GL_FALSE, &camera->ViewMatrix[0][0] );
-   glUniformMatrix4fv( shader->Location.Projection, 1, GL_FALSE, &camera->ProjectionMatrix[0][0] );
-   glUniformMatrix4fv( shader->Location.ModelViewProjection, 1, GL_FALSE, &model_view_projection[0][0] );
-   
-   SuzanneObject->transferUniformsToShader( shader );
-
-   glBindTextureUnit( shader->Location.Texture[0].first, SuzanneObject->TextureID[0] );
-   glBindVertexArray( SuzanneObject->ObjVAO );
-   glDrawArrays( SuzanneObject->DrawMode, 0, SuzanneObject->VerticesCount );
 }
 
 void RendererGL::render()
@@ -366,7 +342,6 @@ void RendererGL::render()
    Lights->transferUniformsToShader( ObjectShader.get() );
    drawClothObject( ObjectShader.get(), MainCamera.get() );
    drawSphereObject( ObjectShader.get(), MainCamera.get() );
-   //drawSuzanneObject( ObjectShader.get(), MainCamera.get() );
 
    glBindVertexArray( 0 );
    glUseProgram( 0 );
@@ -379,12 +354,27 @@ void RendererGL::play()
    setLights();
    setClothObject();
    setSphereObject();
-   //setSuzanneObject();
    setClothPhysicsVariables();
    ObjectShader->setUniformLocations( Lights->TotalLightNum );
    
-
+   const double update_time = 0.1;
+   double last = glfwGetTime(), time_delta = 0.0;
+   int i = 0;
    while (!glfwWindowShouldClose( Window )) {
+      const double now = glfwGetTime();
+      time_delta += now - last;
+      last = now;
+      if (time_delta >= update_time) {
+         Mat screen(1080, 1920,CV_8UC3);
+   glPixelStorei( GL_PACK_ALIGNMENT, screen.step & 3 ? 1 : 4 );
+   glReadBuffer( GL_BACK );
+   glReadPixels( 0, 0, screen.cols, screen.rows, GL_BGR, GL_UNSIGNED_BYTE, screen.data );
+   flip( screen, screen, 0 );
+   imwrite("result/screen" + to_string(i) + ".png", screen);
+         time_delta -= update_time;
+         i++;
+      }
+
       render();
 
       glfwSwapBuffers( Window );

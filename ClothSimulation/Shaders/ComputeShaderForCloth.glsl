@@ -6,9 +6,9 @@ uniform float SpringDamping;
 uniform float ShearRestLength;
 uniform float ShearStiffness;
 uniform float ShearDamping;
-uniform float BendingRestLength;
-uniform float BendingStiffness;
-uniform float BendingDamping;
+uniform float FlexionRestLength;
+uniform float FlexionStiffness;
+uniform float FlexionDamping;
 
 uniform float GravityConstant;
 uniform float GravityDamping;
@@ -84,9 +84,9 @@ void setNeighborSprings(uint index, uint cols, uint rows)
       neighbors[i].damping = ShearDamping;
    }
    for (int i = 8; i < 12; ++i) {
-      neighbors[i].k = BendingStiffness;
+      neighbors[i].k = FlexionStiffness;
       neighbors[i].rest_length = SpringRestLength * 2;
-      neighbors[i].damping = BendingDamping;
+      neighbors[i].damping = FlexionDamping;
    }
 }
 
@@ -117,7 +117,7 @@ vec4 calculateGravityForce(vec4 velocity)
 
 bool calculateFrictionOnSphereIfCollided(inout vec4 force, vec4 p_curr, vec4 velocity)
 {
-   const float epsilon = 0.05f;
+   const float epsilon = 0.0005f;
    vec4 position_in_wc = ClothWorldMatrix * p_curr;
    vec4 sphere_in_wc = SphereWorldMatrix * vec4(SpherePosition, one);
    vec3 d = (position_in_wc - sphere_in_wc).xyz;
@@ -129,7 +129,7 @@ bool calculateFrictionOnSphereIfCollided(inout vec4 force, vec4 p_curr, vec4 vel
       float horizontal_force = max( dot( force.xyz, tangent ), zero );
       if (normal_force > zero) {
          float friction = 0.5f * normal_force;
-         force = max( horizontal_force - friction, zero ) * vec4( tangent, zero ) + velocity * -0.75f;
+         force = max( horizontal_force - friction, zero ) * vec4( tangent, zero );
          return length( force ) > zero;
       }
       else return true;
@@ -137,72 +137,11 @@ bool calculateFrictionOnSphereIfCollided(inout vec4 force, vec4 p_curr, vec4 vel
    return true;
 }
 
-/*vec4 calculateWindForce(vec4 velocity)
-{
-   float random = fract( sin( dot( gl_GlobalInvocationID.xy ,vec2(12.9898f, 78.233f) ) ) * 43758.5453f );
-   return random * windForce(normalize(vec4(normal, 1))) + velocity * DEFAULT_DAMPING;
-}*/
-
 vec3 update(vec4 force, vec4 p_curr, vec4 velocity, uint index)
 {
    vec4 acceleration = force / Mass;
    vec4 updated = p_curr + velocity * dt + acceleration * dt * dt;
    return updated.xyz;
-}
-
-void adjustElasticity(inout updated)
-{
-   // top
-   if (neighbors[0].index != 0xFFFFFFFF && Mass != 0) {
-      vec4 up = vertexOutBuffer[upIndex];
-      vec4 far = updated - up;
-      if (length(far) > structRest * 1.1)
-      {
-         vec4 fix = normalize(-far)*(length(far) - structRest*1.1);
-         updated = updated + fix;
-      }
-   }
-   if (leftIndex != NO_NEIGHBOR && mass != 0) {
-      vec4 left = vertexOutBuffer[leftIndex];
-      vec4 far = updated - left;
-      if (length(far) > structRest * 1.1)
-      {
-         vec4 fix = normalize(-far)*(length(far) - structRest*1.1) / 2;
-         updated = updated + fix;
-      }
-   }
-   if (rightIndex != NO_NEIGHBOR && mass != 0)
-   {
-      vec4 left = vertexOutBuffer[rightIndex];
-      vec4 far = updated - left;
-      if (length(far) > structRest * 1.1)
-      {
-         vec4 fix = normalize(-far)*(length(far) - structRest*1.1) / 2;
-         updated = updated + fix;
-      }
-   }
-   
-   
-   if (neighbors[S1].index != NO_NEIGHBOR && mass != 0)
-   {
-      vec4 left = vertexOutBuffer[neighbors[S1].index];
-      vec4 far = updated - left;
-      if (length(far) > shearRest * 1.2)
-      {
-         vec4 fix = normalize(-far)*(length(far) - shearRest*1.2);
-         updated = updated + fix;
-      }
-   }
-   if (neighbors[S2].index != NO_NEIGHBOR && mass != 0)
-   {
-      vec4 left = vertexOutBuffer[neighbors[S2].index];
-      vec4 far = updated - left;
-      if (length(far) > shearRest * 1.2)
-      {
-         vec4 fix = normalize(-far)*(length(far) - shearRest*1.2);
-         updated = updated + fix;
-      }
-   }
 }
 
 bool detectCollisionWithSphere(inout vec3 updated, uint index)
@@ -239,11 +178,8 @@ void main()
 
    vec4 force = calculateMassSpringForce( p_curr, velocity ) + calculateGravityForce( velocity );
    bool to_be_moved = calculateFrictionOnSphereIfCollided( force, p_curr, velocity );
-   // force += calculateWindForce();
 
    vec3 updated = update( force, p_curr, velocity, index );
-
-   if (to_be_moved) adjustElasticity( updated );
 
    bool collided = detectCollisionWithSphere( updated, index );
    if (!collided && !to_be_moved) {

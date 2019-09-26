@@ -32,7 +32,7 @@ class RendererGL
    shared_ptr<ShaderGL> ObjectShader;
    
    shared_ptr<LightGL> Lights;
-   shared_ptr<ObjectGL> ClothObject, SphereObject, SuzanneObject;
+   shared_ptr<ObjectGL> ClothObject, SphereObject;
 
    void registerCallbacks() const;
    void initialize();
@@ -54,13 +54,11 @@ class RendererGL
    void setLights();
    void setClothObject() const;
    void setSphereObject() const;
-   void setSuzanneObject() const;
    void setClothPhysicsVariables() const;
 
    void applyForces();
    void drawClothObject(ShaderGL* shader, CameraGL* camera);
-   void drawSphereObject(ShaderGL* shader, CameraGL* camera);
-   void drawSuzanneObject(ShaderGL* shader, CameraGL* camera);
+   void drawSphereObject(ShaderGL* shader, CameraGL* camera) const;
    void render();
 
 
