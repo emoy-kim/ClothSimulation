@@ -356,25 +356,8 @@ void RendererGL::play()
    setSphereObject();
    setClothPhysicsVariables();
    ObjectShader->setUniformLocations( Lights->TotalLightNum );
-   
-   const double update_time = 0.1;
-   double last = glfwGetTime(), time_delta = 0.0;
-   int i = 0;
-   while (!glfwWindowShouldClose( Window )) {
-      const double now = glfwGetTime();
-      time_delta += now - last;
-      last = now;
-      if (time_delta >= update_time) {
-         Mat screen(1080, 1920,CV_8UC3);
-   glPixelStorei( GL_PACK_ALIGNMENT, screen.step & 3 ? 1 : 4 );
-   glReadBuffer( GL_BACK );
-   glReadPixels( 0, 0, screen.cols, screen.rows, GL_BGR, GL_UNSIGNED_BYTE, screen.data );
-   flip( screen, screen, 0 );
-   imwrite("result/screen" + to_string(i) + ".png", screen);
-         time_delta -= update_time;
-         i++;
-      }
 
+   while (!glfwWindowShouldClose( Window )) {
       render();
 
       glfwSwapBuffers( Window );
