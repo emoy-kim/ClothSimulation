@@ -1,0 +1,9 @@
+target_link_libraries(
+    OpenGL-Example
+        glad
+        glfw3
+        pthread
+        dl
+        X11
+        freeimage
+)

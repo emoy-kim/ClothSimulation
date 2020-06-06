@@ -1,25 +1,17 @@
-# ClothSimulation
+# OpenGL-Example
 
-![clothsimulation](https://user-images.githubusercontent.com/17864157/65690894-e4406b80-e0aa-11e9-8779-abcbe88b61c3.gif)
+![lighting](https://user-images.githubusercontent.com/17864157/61940947-6b049980-afd1-11e9-9b4d-482d78d7d0eb.PNG)
 
-  
-## Test Environment
-  * Windows 10
-  * Visual Studio 2019
-  * Surface Book 2
-  
-## Library Dependencies
-  * OpenCV
-  * OpenGL
+
 
 ## Keyboard Commands
-  * **Up Arrow**: move forward
-  * **Down Arrow**: move backward
-  * **Left Arrow**: move left
-  * **Right Arrow**: move right
+  * **space bar**: object moving
+  * **l key**: toggle light effects
+  * **i key**: reset the main camera
   * **w key**: move up
   * **s key**: move down
-  * **i key**: main camera and projector reset
-  * **l key**: light turn on/off
-  * **enter key**: project an image/video
-  * **q/ESC key**: exit
+  * **Up arrow**: move forward
+  * **Down arrow**: move backward
+  * **Left arrow**: move left
+  * **Right arrow**: move right
+  * **q key**: exit
