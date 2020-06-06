@@ -409,7 +409,7 @@ void ObjectGL::setElementBuffer(std::vector<GLuint>& indices) const
 {
    GLuint obj_ibo;
    glCreateBuffers( 1, &obj_ibo );
-   glNamedBufferStorage( obj_ibo, sizeof GLuint * indices.size(), indices.data(), GL_DYNAMIC_STORAGE_BIT );
+   glNamedBufferStorage( obj_ibo, sizeof( GLuint ) * indices.size(), indices.data(), GL_DYNAMIC_STORAGE_BIT );
    glVertexArrayElementBuffer( VAO, obj_ibo );
 }
 
@@ -514,11 +514,11 @@ void ObjectGL::prepareShaderStorageBuffer()
    glCreateBuffers( 1, &ShaderStorageBufferObjects[2] );
    
    glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 0, ShaderStorageBufferObjects[0] );
-   glBufferData( GL_SHADER_STORAGE_BUFFER, sizeof GLfloat * DataBuffer.size(), DataBuffer.data(), GL_DYNAMIC_DRAW );
+   glBufferData( GL_SHADER_STORAGE_BUFFER, sizeof( GLfloat ) * DataBuffer.size(), DataBuffer.data(), GL_DYNAMIC_DRAW );
 
    glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 1, ShaderStorageBufferObjects[1] );
-   glBufferData( GL_SHADER_STORAGE_BUFFER, sizeof GLfloat * DataBuffer.size(), DataBuffer.data(), GL_DYNAMIC_DRAW );
+   glBufferData( GL_SHADER_STORAGE_BUFFER, sizeof( GLfloat ) * DataBuffer.size(), DataBuffer.data(), GL_DYNAMIC_DRAW );
    
    glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 2, ShaderStorageBufferObjects[2] );
-   glBufferData( GL_SHADER_STORAGE_BUFFER, sizeof GLfloat * DataBuffer.size(), nullptr, GL_DYNAMIC_DRAW );
+   glBufferData( GL_SHADER_STORAGE_BUFFER, sizeof( GLfloat ) * DataBuffer.size(), nullptr, GL_DYNAMIC_DRAW );
 }
